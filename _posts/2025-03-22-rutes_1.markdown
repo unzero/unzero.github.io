@@ -1,0 +1,89 @@
+---
+layout: post
+title:  "Rutes: A testing tool written in Rust."
+date:   2025-03-21 19:41:43 -0600
+categories: rust rutes
+published: false
+---
+
+*Rutes is a tool to build, and execute testing pipelines. I work on this project to learn about Rust and its ecosystem. My goal is to develop a tool to simplify software's formal verification process. This entries contains the develop journey. You can find the source code in the following repo [https://github.com/unzero/rutes](https://github.com/unzero/rutes).*
+
+*Rutes is an ongoing project. It may have opportunities for improvements.*
+
+
+One day I woke up and decided to work on some project using Rust. After some time, I chose to work on a software to build and execute testing pipelines. So here I am, sharing with you the development process of `Rutes`.
+
+The journey starts doing some experiments on Rust. I started by the definition of a basic unit of execution within a pipeline, a `Task`. 
+
+{% highlight rust %}
+pub struct Task {
+    uuid: Uuid,
+    process_child: Child,
+    log_filepath: String,
+    command: String,
+}
+
+impl Task {
+
+    fn new(...) -> Task {
+        ...
+    }
+
+    fn get_status(...) -> String {
+        ...
+    }
+
+    pub fn kill(...) -> Result<(), RutesError> {
+        ...
+    }   
+
+    pub fn get_tail(...) -> Result<String, RutesError> {
+        ...
+    }
+
+    pub fn get_uuid(...) -> Result<Uuid, RutesError> {
+        ...
+    }
+
+}
+
+{% endhighlight %}
+
+You can check the whole implementation [here](https://github.com/unzero/rutes/blob/main/src/core/task/mod.rs). I use Rust's `std::process` module to work with processes. I started  with the implementation of basic functionality.
+
+- Starting a process. 
+- Killing a process. 
+- Know process' status. 
+- Get latest process' output. 
+
+With these four methods, we can go ahead and do some funny stuff.   
+
+Task implementation relies on one of my favorites Rust's features: `Result<>` type. Using Result you can handle exceptions and errors avoiding unrecoverable runtime errors (Rust panic). It is helpful because Result helps to improve user experience. By returning an error you can wrap any internal error and show better error message to a final user. 
+
+Now, you can write a method to schedule a new Task.
+
+{% highlight rust %}
+pub fn execute(active_user: &User, command: &str, args: Vec<&str>) -> Result<Task, RutesError> {
+    let uuid = Uuid::new_v4();
+    let filepath = format!("{}/{}.log", active_user.get_userpath(), uuid,);
+    let file = File::create(filepath.clone()).map_err(|_e| {
+        RutesError::ExecutorError
+    })?;
+
+    let mut cmd = Command::new(command);
+    cmd.args(args);
+    cmd.stdout(file);
+    let child = cmd.spawn().map_err(|_e| RutesError::ExecutorError)?;
+    Ok(Task::new(uuid, child, filepath, String::from(command)))
+}
+{% endhighlight %}
+
+You can see how `RutesError` hides internal errors to users.  As you may expect, a basic requirement for a Task is to store its output. Right now, I'm just writing any Task's output to a file, so we can read it later using the Task UUID. 
+
+To finish this first part, we can write a [CLI interface](https://github.com/unzero/rutes/blob/main/src/console.rs) to let any user schedule, monitor and kill a Task.
+
+Next, I will be explaining the grammar for the pipelines, stay tunned for updates.
+
+{% highlight rust %}
+
+{% endhighlight %}
